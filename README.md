@@ -67,3 +67,4 @@ pip install -r requirements.txt
 Dashboard: https://independent-restaurant-supplier-invoice-.vokrix.co
 Vercel: independent-restaurant-supplier-invoice-
 Railway: 243546a7-5b41-49cd-97dd-a5c63a1d441f
+Railway: independent-restaurant-supplier-invoice-
