@@ -64,3 +64,6 @@ pip install -r requirements.txt
 - PDF (via `pdfplumber`)
 - Excel .xlsx (via `openpyxl`)
 - CSV / plain text (UTF-8 fallback)
+Dashboard: https://independent-restaurant-supplier-invoice-.vokrix.co
+Vercel: independent-restaurant-supplier-invoice-
+Railway: 243546a7-5b41-49cd-97dd-a5c63a1d441f
