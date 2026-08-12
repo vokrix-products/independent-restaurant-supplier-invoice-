@@ -89,6 +89,7 @@ Important rules:
 - Use ISO-8601 dates (YYYY-MM-DD). If a date is missing, set it to None.
 - All numeric values should be floats (use None if missing).
 - The primary entity being tracked is the supplier (vendor). The "title" field will later be set to supplier_name.
+- If the text contains MULTIPLE invoices, return {{"invoices": [ {{...same structure...}}, {{...same structure...}} ]}} with one entry per invoice.
 - If the invoice text is not an invoice or cannot be parsed, return {{}} empty object.
 - Return only the JSON object, no extra text.
 
@@ -140,58 +141,72 @@ def process_file(file_bytes: bytes) -> List[Dict[str, Any]]:
                 response_format={"type": "json_object"}
             )
             response_text = completion.choices[0].message.content
+            print(f"DeepSeek attempt {attempt} raw response: {response_text[:500]}")
             invoice_data = parse_llm_response(response_text)
             if invoice_data:
                 break
-        except Exception:
+            print(f"DeepSeek returned empty object on attempt {attempt}")
+        except Exception as e:
+            print(f"DeepSeek call failed on attempt {attempt}: {e}")
             if attempt == MAX_RETRIES:
                 # Return empty list on persistent failure
                 return []
     else:
         # No valid response after retries
+        print("DeepSeek returned empty/unparseable response on all attempts")
         return []
 
-    # 3. Build records: one per line item, or one overall if no line items
+    # 3. Build records: one per line item, or one overall if no line items.
+    #    Support both single-invoice and multi-invoice {"invoices": [...]} responses.
     records = []
-    supplier_name = invoice_data.get("supplier_name") or "Unknown Supplier"
-    due_date = invoice_data.get("due_date")  # already ISO-8601 or None
-    line_items = invoice_data.get("line_items", [])
+    invoice_list = invoice_data.get("invoices") or [invoice_data]
+    if not isinstance(invoice_list, list):
+        invoice_list = [invoice_list]
 
-    # Common details to propagate into each record
-    base_details = {
-        "invoice_number": invoice_data.get("invoice_number"),
-        "invoice_date": invoice_data.get("invoice_date"),
-        "remit_address": invoice_data.get("remit_address"),
-        "payment_terms": invoice_data.get("payment_terms"),
-        "purchase_order": invoice_data.get("purchase_order"),
-        "location": invoice_data.get("location"),
-        "currency": invoice_data.get("currency"),
-        "tax_amount": invoice_data.get("tax_amount"),
-        "freight_shipping": invoice_data.get("freight_shipping"),
-        "invoice_total": invoice_data.get("invoice_total"),
-    }
+    for inv in invoice_list:
+        if not isinstance(inv, dict):
+            continue
+        supplier_name = inv.get("supplier_name") or "Unknown Supplier"
+        due_date = inv.get("due_date")  # already ISO-8601 or None
+        line_items = inv.get("line_items", [])
 
-    if line_items:
-        for item in line_items:
-            # Merge base details with line-specific details
+        # Common details to propagate into each record
+        base_details = {
+            "invoice_number": inv.get("invoice_number"),
+            "invoice_date": inv.get("invoice_date"),
+            "remit_address": inv.get("remit_address"),
+            "payment_terms": inv.get("payment_terms"),
+            "purchase_order": inv.get("purchase_order"),
+            "location": inv.get("location"),
+            "currency": inv.get("currency"),
+            "tax_amount": inv.get("tax_amount"),
+            "freight_shipping": inv.get("freight_shipping"),
+            "invoice_total": inv.get("invoice_total"),
+        }
+
+        if line_items:
+            for item in line_items:
+                if not isinstance(item, dict):
+                    continue
+                # Merge base details with line-specific details
+                details = base_details.copy()
+                details.update({k: v for k, v in item.items() if v is not None})
+                record = {
+                    "title": supplier_name,          # primary entity
+                    "status": STATUS_UNPROCESSED,    # always unprocessed on extraction
+                    "details": details,
+                    "due_date": due_date
+                }
+                records.append(record)
+        else:
+            # No line items: create a single record holding what we have
             details = base_details.copy()
-            details.update({k: v for k, v in item.items() if v is not None})
             record = {
-                "title": supplier_name,          # primary entity
-                "status": STATUS_UNPROCESSED,    # always unprocessed on extraction
+                "title": supplier_name,
+                "status": STATUS_UNPROCESSED,
                 "details": details,
                 "due_date": due_date
             }
             records.append(record)
-    else:
-        # No line items: create a single record holding what we have
-        details = base_details.copy()
-        record = {
-            "title": supplier_name,
-            "status": STATUS_UNPROCESSED,
-            "details": details,
-            "due_date": due_date
-        }
-        records.append(record)
 
     return records
