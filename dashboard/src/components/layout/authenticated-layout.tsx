@@ -14,8 +14,6 @@ type AuthenticatedLayoutProps = {
 
 export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
   const defaultOpen = getCookie('sidebar_state') !== 'false'
-  const crossProductView =
-    typeof window !== 'undefined' && sessionStorage.getItem('cross_product_view') === '1'
   return (
     <SearchProvider>
       <LayoutProvider>
