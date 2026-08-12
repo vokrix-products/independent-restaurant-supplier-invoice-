@@ -1,4 +1,4 @@
-import {Clock, CircleCheckBig, TriangleAlert} from 'lucide-react'
+import { TriangleAlert, CircleCheckBig, Clock } from 'lucide-react'
 
 export const labels = [
   {
@@ -40,13 +40,9 @@ export const statuses: {
   icon: typeof TriangleAlert
   severity: Severity
 }[] = [
-  { label: 'Unprocessed', value: 'unprocessed:info', icon: Clock, severity: 'info' as Severity },
-  { label: 'Missing', value: 'missing:warning', icon: Clock, severity: 'warning' as Severity },
-  { label: 'Expired', value: 'expired:warning', icon: Clock, severity: 'warning' as Severity },
-  { label: 'Valid', value: 'valid:good', icon: CircleCheckBig, severity: 'good' as Severity },
-  { label: 'Flagged', value: 'flagged:warning', icon: Clock, severity: 'warning' as Severity },
-  { label: 'Critical', value: 'critical:critical', icon: TriangleAlert, severity: 'critical' as Severity },
-  { label: 'Needs Approval', value: 'needs_approval:info', icon: Clock, severity: 'info' as Severity },
-  { label: 'Ignored', value: 'ignored:info', icon: Clock, severity: 'info' as Severity },
+  { label: 'Done', value: 'done', icon: CircleCheckBig, severity: 'good' as Severity },
+  { label: 'Pending', value: 'pending', icon: Clock, severity: 'neutral' as Severity },
+  { label: 'Failed', value: 'failed', icon: TriangleAlert, severity: 'critical' as Severity },
+  { label: 'Archived', value: 'archived', icon: Clock, severity: 'neutral' as Severity },
 ]
 // __STATUSES_BLOCK_END__
