@@ -86,11 +86,12 @@ You are an invoice data extraction assistant. Extract all information from the f
 }}
 
 Important rules:
-- Use ISO-8601 dates (YYYY-MM-DD). If a date is missing, set it to None.
+- Use ISO-8601 dates in plain YYYY-MM-DD format ONLY (e.g. 2024-07-11). NEVER include a time component or timezone offset. If a date is missing, set it to None.
 - All numeric values should be floats (use None if missing).
 - The primary entity being tracked is the supplier (vendor). The "title" field will later be set to supplier_name.
 - If the text contains MULTIPLE invoices, return {{"invoices": [ {{...same structure...}}, {{...same structure...}} ]}} with one entry per invoice.
 - If the invoice text is not an invoice or cannot be parsed, return {{}} empty object.
+- If the supplier name cannot be determined, set supplier_name to null — do NOT invent a name.
 - Return only the JSON object, no extra text.
 
 Invoice text:
@@ -111,6 +112,20 @@ def parse_llm_response(response_content: str) -> dict:
         return data if isinstance(data, dict) else {}
     except Exception:
         return {}
+
+def normalize_date(value) -> Optional[str]:
+    """Normalize any date value to plain YYYY-MM-DD, or None."""
+    if not value:
+        return None
+    s = str(value).strip()
+    if not s or s.lower() == "none":
+        return None
+    # Take the date part only (handles "2024-07-11T00:00:00+00:00" etc.)
+    date_part = s[:10]
+    # Validate it looks like a date
+    if len(date_part) == 10 and date_part[4] == "-" and date_part[7] == "-":
+        return date_part
+    return None
 
 def process_file(file_bytes: bytes) -> List[Dict[str, Any]]:
     """Extract line-item records from invoice bytes.
@@ -166,14 +181,20 @@ def process_file(file_bytes: bytes) -> List[Dict[str, Any]]:
     for inv in invoice_list:
         if not isinstance(inv, dict):
             continue
-        supplier_name = inv.get("supplier_name") or "Unknown Supplier"
-        due_date = inv.get("due_date")  # already ISO-8601 or None
+        supplier_name = inv.get("supplier_name")
+        if not supplier_name:
+            # Skip invoices with no supplier — generic placeholders violate the README
+            print(f"Skipping invoice without supplier_name: {str(inv)[:200]}")
+            continue
+        supplier_name = str(supplier_name).strip()
+        due_date = normalize_date(inv.get("due_date"))
+        invoice_date = normalize_date(inv.get("invoice_date"))
         line_items = inv.get("line_items", [])
 
         # Common details to propagate into each record
         base_details = {
             "invoice_number": inv.get("invoice_number"),
-            "invoice_date": inv.get("invoice_date"),
+            "invoice_date": invoice_date,
             "remit_address": inv.get("remit_address"),
             "payment_terms": inv.get("payment_terms"),
             "purchase_order": inv.get("purchase_order"),
