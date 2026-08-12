@@ -10,15 +10,17 @@ export const Route = createFileRoute('/_authenticated')({
       throw redirect({ to: '/sign-up' })
     }
     await syncAuthFromSession()
-    // Cross-product login guard: if user is paid for a different product, sign out
+    // Cross-product login guard: if user is subscribed to a different product,
+    // let them in but flag it so the layout shows a banner (no hard signOut).
     const { data: sessionData } = await supabase.auth.getSession()
     if (sessionData.session) {
       const meta = sessionData.session.user.app_metadata
       const userProductId = meta.product_id ?? ''
       const thisProductId = import.meta.env.VITE_PRODUCT_ID as string
       if (userProductId && userProductId !== thisProductId) {
-        await supabase.auth.signOut()
-        throw redirect({ to: '/sign-up' })
+        sessionStorage.setItem('cross_product_view', '1')
+      } else {
+        sessionStorage.removeItem('cross_product_view')
       }
     }
     // Write audit log for session start (once per browser session)
