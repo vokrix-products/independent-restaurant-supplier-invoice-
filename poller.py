@@ -165,3 +165,7 @@ def poll():
         except Exception as e:
             print(f"Polling error: {e}")
             time.sleep(60)
+
+if __name__ == "__main__":
+    print("Poller started")
+    poll()
