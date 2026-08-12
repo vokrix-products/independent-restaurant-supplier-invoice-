@@ -40,9 +40,7 @@ export const statuses: {
   icon: typeof TriangleAlert
   severity: Severity
 }[] = [
-  { label: 'Done', value: 'done', icon: CircleCheckBig, severity: 'good' as Severity },
-  { label: 'Pending', value: 'pending', icon: Clock, severity: 'neutral' as Severity },
-  { label: 'Failed', value: 'failed', icon: TriangleAlert, severity: 'critical' as Severity },
-  { label: 'Archived', value: 'archived', icon: Clock, severity: 'neutral' as Severity },
+  { label: 'Unprocessed', value: 'unprocessed:info', icon: Clock, severity: 'neutral' as Severity },
+  { label: 'Valid', value: 'valid:good', icon: CircleCheckBig, severity: 'good' as Severity },
 ]
 // __STATUSES_BLOCK_END__
