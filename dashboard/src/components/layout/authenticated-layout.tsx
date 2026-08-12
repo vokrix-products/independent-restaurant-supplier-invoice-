@@ -19,11 +19,6 @@ export function AuthenticatedLayout({ children }: AuthenticatedLayoutProps) {
       <LayoutProvider>
         <SidebarProvider defaultOpen={defaultOpen}>
           <SkipToMain />
-          {crossProductView && (
-            <div className="fixed inset-x-0 top-0 z-50 border-b border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-center text-sm text-amber-700">
-              You're subscribed to another Vokrix product — you're viewing this product's dashboard.
-            </div>
-          )}
           <AppSidebar />
           <SidebarInset
             className={cn(
