@@ -55,7 +55,9 @@ const TRIAL_LIMIT = 3
 
 export function useTrialUsage() {
   const user = useAuthStore((state) => state.auth.user)
-  const isPaid = !!(user as any)?.app_metadata?.product_id
+  // product_id is flattened onto the store user by syncAuthFromSession
+  // (from session app_metadata). Paid == claim matches this product.
+  const isPaid = !!user?.product_id && user.product_id === PRODUCT_ID
   const { data: jobs } = useJobs()
   const used = jobs?.filter(j => ['pending','processing','completed'].includes(j.status)).length ?? 0
   return { used, limit: TRIAL_LIMIT, isPaid }
