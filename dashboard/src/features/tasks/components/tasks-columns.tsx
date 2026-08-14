@@ -34,6 +34,21 @@ function formatDueDate(iso: string | null | undefined): string | null {
   return label
 }
 
+function detailsOf(row: { original: Task }): Record<string, unknown> {
+  return (row.original.details ?? {}) as Record<string, unknown>
+}
+
+function formatCurrency(value: unknown, currency: unknown): string {
+  const n = typeof value === 'number' ? value : Number(value)
+  if (!Number.isFinite(n)) return '—'
+  const code = typeof currency === 'string' && currency ? currency : 'USD'
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: code }).format(n)
+  } catch {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n)
+  }
+}
+
 export const tasksColumns: ColumnDef<Task>[] = [
   {
     id: 'select',
@@ -81,6 +96,65 @@ export const tasksColumns: ColumnDef<Task>[] = [
       return (
         <div className='flex space-x-2'>
           <span className='truncate font-medium'>{row.getValue('title')}</span>
+        </div>
+      )
+    },
+  },
+  {
+    id: 'unit_price',
+    accessorFn: (row) => (row.details as Record<string, unknown> | null)?.unit_price ?? null,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Unit Price' />
+    ),
+    meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    cell: ({ row }) => {
+      const details = detailsOf(row)
+      const price = details.unit_price
+      if (price == null) return <span className='text-muted-foreground'>—</span>
+      return <span className='font-medium'>{formatCurrency(price, details.currency)}</span>
+    },
+  },
+  {
+    id: 'price_change_pct',
+    accessorFn: (row) => (row.details as Record<string, unknown> | null)?.price_change_pct ?? null,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Price Change' />
+    ),
+    meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    cell: ({ row }) => {
+      const details = detailsOf(row)
+      const pct = details.price_change_pct
+      if (typeof pct !== 'number' || !Number.isFinite(pct)) {
+        return <span className='text-muted-foreground'>—</span>
+      }
+      const up = pct > 0
+      return (
+        <Badge variant={up ? 'destructive' : 'success'} className='font-mono'>
+          {up ? '+' : ''}{pct.toFixed(1)}%
+        </Badge>
+      )
+    },
+  },
+  {
+    id: 'matched_recipe',
+    accessorFn: (row) => (row.details as Record<string, unknown> | null)?.matched_recipe ?? null,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title='Matched Recipe' />
+    ),
+    meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    cell: ({ row }) => {
+      const details = detailsOf(row)
+      const recipe = details.matched_recipe
+      if (!recipe) return <span className='text-muted-foreground'>—</span>
+      const pct = details.recipe_impact_pct
+      return (
+        <div className='flex flex-col'>
+          <span className='truncate font-medium'>{String(recipe)}</span>
+          {typeof pct === 'number' && Number.isFinite(pct) && (
+            <span className={pct > 0 ? 'text-destructive text-xs' : 'text-emerald-600 text-xs'}>
+              impact {pct > 0 ? '+' : ''}{pct.toFixed(1)}%
+            </span>
+          )}
         </div>
       )
     },
