@@ -20,6 +20,7 @@ export interface RecentAlert {
   id: string
   title: string
   status: string
+  unit_price: string | null
   price_change_pct: string | null
   matched_recipe: string | null
 }
@@ -91,14 +92,35 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
     .order('due_date', { ascending: true })
     .limit(10)
 
-  // Latest line items that already went through variance analysis
+  // Line items that went through variance analysis — rank by absolute
+  // price change so only real movers surface (0.0% rows are not alerts).
   const { data: alertData } = await supabase
     .from('records')
     .select('id, title, status, details')
     .eq('product_id', PRODUCT_ID)
     .not('details->>price_change_pct', 'is', null)
     .order('created_at', { ascending: false })
-    .limit(6)
+    .limit(50)
+
+  const movers = (alertData ?? [])
+    .map((row) => ({
+      id: String(row.id),
+      title: row.title,
+      status: row.status,
+      unit_price: row.details?.unit_price ?? null,
+      price_change_pct: row.details?.price_change_pct ?? null,
+      matched_recipe: row.details?.matched_recipe ?? null,
+    }))
+    .filter((r) => {
+      const pct = parseFloat(r.price_change_pct ?? '')
+      return Number.isFinite(pct) && pct !== 0
+    })
+    .sort((a, b) => {
+      const ap = Math.abs(parseFloat(a.price_change_pct ?? '0'))
+      const bp = Math.abs(parseFloat(b.price_change_pct ?? '0'))
+      return bp - ap
+    })
+    .slice(0, 6)
 
   return {
     total: rows.length,
@@ -123,13 +145,7 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
       status: row.status,
       due_date: row.due_date,
     })),
-    recentAlerts: (alertData ?? []).map((row) => ({
-      id: String(row.id),
-      title: row.title,
-      status: row.status,
-      price_change_pct: row.details?.price_change_pct ?? null,
-      matched_recipe: row.details?.matched_recipe ?? null,
-    })),
+    recentAlerts: movers,
   }
 }
 

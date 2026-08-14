@@ -158,8 +158,8 @@ export function Dashboard() {
           </div>
           <Card>
             <CardHeader>
-              <CardTitle>Recent Price Alerts</CardTitle>
-              <CardDescription>Latest line items with cost variance analysis</CardDescription>
+              <CardTitle>Top Price Movers</CardTitle>
+              <CardDescription>Largest invoice price changes vs baselines</CardDescription>
             </CardHeader>
             <CardContent>
               <RecentPriceAlerts />

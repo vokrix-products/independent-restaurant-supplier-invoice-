@@ -33,11 +33,12 @@ export function RecentPriceAlerts() {
   if (items.length === 0) {
     return (
       <div className='flex flex-col items-center justify-center py-8 gap-2 text-center'>
-        <svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round' className='text-muted-foreground/40'>
-          <path d='M3 3v18h18' />
-          <path d='M7 14l3-4 4 3 5-6' />
+        <svg width='28' height='28' viewBox='0 0 24 24' fill='none' stroke='currentColor' strokeWidth='1.5' strokeLinecap='round' strokeLinejoin='round' className='text-success/70'>
+          <path d='M22 11.08V12a10 10 0 1 1-5.93-9.14' />
+          <path d='M22 4 12 14.01l-3-3' />
         </svg>
-        <p className='text-sm text-muted-foreground'>No price variance alerts yet. Upload an invoice to start comparing costs.</p>
+        <p className='text-sm font-medium text-muted-foreground'>No price variances detected</p>
+        <p className='text-xs text-muted-foreground/70'>All invoice prices are within recipe baselines.</p>
       </div>
     )
   }
@@ -52,10 +53,11 @@ export function RecentPriceAlerts() {
         const pctLabel = Number.isFinite(pct)
           ? `${pct > 0 ? '+' : ''}${pct.toFixed(1)}%`
           : '—'
+        const unitPrice = record.unit_price != null ? parseFloat(record.unit_price) : NaN
         return (
           <div
             key={record.id}
-            className='flex items-center justify-between rounded-md border px-3 py-2'
+            className='flex items-center justify-between gap-3 rounded-md border px-3 py-2'
           >
             <div className='flex items-center gap-3 min-w-0'>
               <span
@@ -72,9 +74,16 @@ export function RecentPriceAlerts() {
                 )}
               </div>
             </div>
-            <Badge variant={badgeVariant} className='ml-2 shrink-0'>
-              {statusDef?.label ?? record.status}
-            </Badge>
+            <div className='flex items-center gap-2 shrink-0'>
+              {Number.isFinite(unitPrice) && (
+                <span className='text-xs text-muted-foreground tabular-nums'>
+                  ${unitPrice.toFixed(2)}
+                </span>
+              )}
+              <Badge variant={badgeVariant} className='ml-1 shrink-0'>
+                {statusDef?.label ?? record.status}
+              </Badge>
+            </div>
           </div>
         )
       })}
