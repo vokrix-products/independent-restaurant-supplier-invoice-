@@ -75,16 +75,23 @@ def load_recipe_data():
             headers=HEADERS,
             params={"product_id": f"eq.{PRODUCT_ID}", "select": "id,name,description"},
         )
-        recipes = r.json() if r.status_code == 200 else []
+        if r.status_code != 200:
+            print(f"[DIAG] recipes lookup status={r.status_code} body={r.text[:300]}")
+            return [], {}
+        recipes = r.json()
         r2 = requests.get(
             f"{SUPABASE_URL}/rest/v1/recipe_ingredients",
             headers=HEADERS,
             params={"select": "recipe_id,ingredient_name,aliases,sku,unit,quantity,expected_unit_price"},
         )
-        ings = r2.json() if r2.status_code == 200 else []
+        if r2.status_code != 200:
+            print(f"[DIAG] recipe_ingredients lookup status={r2.status_code} body={r2.text[:300]}")
+            return recipes, {}
+        ings = r2.json()
         by_recipe = {}
         for ing in ings:
             by_recipe.setdefault(ing["recipe_id"], []).append(ing)
+        print(f"[DIAG] recipe data loaded: {len(recipes)} recipes, {len(ings)} ingredients")
         return recipes, by_recipe
     except Exception as e:
         print(f"load_recipe_data failed: {e}")
@@ -127,6 +134,8 @@ def fetch_previous_price(sku, description):
                 old = rows[0].get("details", {}).get("unit_price")
                 if old is not None:
                     return old, rows[0].get("created_at")
+        else:
+            print(f"[DIAG] records lookup status={resp.status_code} body={resp.text[:200]}")
     return None, None
 
 
@@ -195,12 +204,16 @@ def get_customer_email(customer_id):
                 headers=HEADERS,
                 params={"id": f"eq.{customer_id}", "select": "email", "limit": "1"},
             )
-            if resp.status_code == 200:
-                rows = resp.json()
-                if rows and rows[0].get("email"):
-                    return rows[0]["email"]
-        except Exception:
-            continue
+            if resp.status_code != 200:
+                print(f"[DIAG] {table} lookup status={resp.status_code} body={resp.text[:300]}")
+                continue
+            rows = resp.json()
+            if rows and rows[0].get("email"):
+                return rows[0]["email"]
+            if resp.status_code == 200 and not rows:
+                print(f"[DIAG] {table} lookup OK but no row for {customer_id}")
+        except Exception as e:
+            print(f"[DIAG] {table} lookup exception: {e}")
     if DEFAULT_ALERT_EMAIL:
         return DEFAULT_ALERT_EMAIL
     return None
