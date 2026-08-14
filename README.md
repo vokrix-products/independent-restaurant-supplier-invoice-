@@ -1,77 +1,110 @@
 # Independent Restaurant Supplier Invoice → Recipe Cost Variance Auto-Alerter
 
-## Product
-A lightweight backend service (SMB tier, non-MarginEdge) that extracts supplier invoice data — including line-item details — from PDF, Excel, CSV, or plain-text files using the DeepSeek API. The extracted records are structured for a downstream poller that flags recipe cost variances automatically.
+**Know the moment a supplier price hike hits your recipes.** Upload supplier invoices and get instant alerts when ingredient costs drift from what your recipes expect — no inventory system, no POS integration required.
 
-## Archetype
-- **Primary entity**: The supplier (vendor). The `title` field of every record is the supplier name.
-- **Record status**: Every extraction starts as `unprocessed:info`, signaling to the poller that the record has been ingested but not yet processed.
-- **Key dates**: `due_date` is normalized to ISO-8601 (YYYY-MM-DD), or `None` if missing.
+- **Live dashboard:** https://independent-restaurant-supplier-invoice-.vokrix.co
+- **Landing page:** https://vokrix.co/independent-restaurant-supplier-invoice-
+- **Status:** active, accepting paid customers ($49/mo, 3 free uploads to try)
 
-## What the Poller Expects as Input
-`process_file(file_bytes)` returns a list of records. Each record is a dictionary:
+---
 
-```python
-{
-    "title": "Supplier Name",          # primary entity
-    "status": "unprocessed:info",      # always set on extraction
-    "details": {
-        "invoice_number": "INV-12345",
-        "invoice_date": "2025-01-15",
-        "remit_address": "...",
-        "payment_terms": "Net 30",
-        "purchase_order": "PO-98765",
-        "location": "Store 1",
-        "currency": "USD",
-        "tax_amount": 10.0,
-        "freight_shipping": 5.0,
-        "invoice_total": 120.0,
-        # line-item fields merged below:
-        "description": "Tomatoes",
-        "sku": "SKU123",
-        "unit": "kg",
-        "quantity": 10.0,
-        "unit_price": 2.5,
-        "extended_total": 25.0,
-        "discounts_allowances": 0.0,
-        "gl_category": "Food"
-    },
-    "due_date": "2025-02-14"  # ISO-8601 or None
-}
+## What it does
+
+1. **Upload** — restaurant owners drop in supplier invoice files (PDF, Excel, CSV, or plain text) via the dashboard's drag-and-drop upload card. Free tier = 3 uploads; after that, an Upgrade paywall triggers Stripe checkout.
+2. **Extract** — `processor.py` sends the file bytes to the DeepSeek API and returns structured line-item records: supplier name, invoice number/date, due date, and per-line description, SKU, unit, quantity, unit price, extended total, GL category.
+3. **Match** — `poller.py` matches each line item against the recipe database (`recipes` + `recipe_ingredients`) by supplier + ingredient description/SKU, and compares the invoiced unit price to the expected recipe cost baseline.
+4. **Alert** — variances beyond the threshold are classified (Flagged / Critical) and an email alert is sent via Brevo (`send_price_alert`). All processing notifications are stored in `notifications`.
+5. **Review** — the dashboard surfaces everything: variance table with color-coded severity, Matched Recipe + impact %, Top Price Movers card, Recent Activity, status breakdown.
+
+## Record statuses (8)
+
+| Status | Meaning |
+|---|---|
+| `Valid` | Price within recipe baseline (±5%) |
+| `Price Flagged` | Price moved +5% to +15% vs baseline |
+| `Price Critical` | Price moved > +15% vs baseline |
+| `Missing Data` | Line item missing price/description needed for comparison |
+| `Unprocessed` | Ingestion complete, poller hasn't analyzed it yet |
+| `Expired` | `due_date` is in the past (payment deadline passed) |
+| `Valid (decrease)` | Price moved below baseline (cost down) |
+| `Flagged (decrease)` | Price dropped meaningfully (cost down) |
+
+Primary entity: the **supplier** (`title` field). Every extraction starts as `unprocessed:info`; the poller marks it processed after variance analysis.
+
+## Architecture
+
+```
+dashboard/   React + Vite + TanStack Router app (Vercel) — auth, upload, paywall, variance table
+poller.py    Railway service — polls unprocessed records, matches recipes, classifies, sends Brevo alerts
+processor.py DeepSeek extraction engine (PDF/XLSX/CSV/text → records)
+backend/     Legacy copy of processor.py (kept for reference)
 ```
 
-The poller should:
-1. Read records with `status == "unprocessed:info"`.
-2. Match `title` (supplier) and `details.description` / `details.sku` against recipe ingredient costs.
-3. Compare invoice unit prices against expected recipe costs.
-4. Mark records processed after variance alerts are emitted.
+- **Dashboard:** https://independent-restaurant-supplier-invoice-.vokrix.co (Vercel)
+- **Poller/processor:** Railway service `243546a7-5b41-49cd-97dd-a5c63a1d441f` (Docker)
+- **Database:** Supabase `llaorhwnbtppguvnkxzu` — tables: `records`, `jobs`, `recipes`, `recipe_ingredients`, `customers`, `notifications`, `profiles`
 
-## Setup
+## Key tables
 
-Set `DEEPSEEK_API_KEY` environment variable before running.
+- `records` — extracted invoice line items (RLS: `customer_id = auth.uid()`). Fields: `title` (supplier), `status`, `details` (jsonb: invoice + line-item fields), `due_date` (ISO-8601 or null), `price_change_pct`, `matched_ingredient`, `matched_recipe`, `recipe_impact_pct`, `severity`.
+- `recipes` / `recipe_ingredients` — the cost baselines (currently 9 recipes, 26 ingredients) used to compute variances.
+- `jobs` — upload jobs with progress state.
+- `customers` — customer → auth user mapping; **email is what alert emails are sent to**.
+- `notifications` — processing + variance alert history.
+
+## Dashboard features
+
+- Supplier Price Variances table: search, status filter, resizable columns, full supplier names, Matched Recipe column, Price Change %, status badge, View drawer with full `details` JSON.
+- Stats cards: Added This Week, Status Breakdown (bar chart).
+- Recent Activity (ingest timeline) + Top Price Movers (largest |%| variances, color-coded, no 0.0% noise).
+- Upload card: drag-drop + choose file, animated circular progress, 3-free-uploads meter, Upgrade → Stripe.
+- Separate `/sign-in` (Send login code) and `/sign-up` (Start free trial) pages with Vercel-style email-exists detection (`user_exists` RPC).
+- Paid accounts: `app_metadata.product_id = 'independent-restaurant-supplier-invoice-'` + `subscription_active = true` (set by Stripe webhook) — paywall hides, unlimited uploads.
+
+## Environment variables
+
+**Railway (poller):**
+- `DEEPSEEK_API_KEY` — extraction LLM
+- `SUPABASE_URL` / `SUPABASE_SERVICE_KEY` — DB access
+- `PRODUCT_ID` — `independent-restaurant-supplier-invoice-`
+- `BREVO_API_KEY`, `BREVO_SENDER_EMAIL` — alert email delivery (`jan@vokrix.net`)
+
+**Vercel (dashboard):**
+- `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- `VITE_PRODUCT_ID`
+- `VITE_STRIPE_PRICE_ID`, `VITE_STRIPE_PUBLISHABLE_KEY`
+- `SUPABASE_SERVICE_KEY` (server-side, upload API)
+
+## Local development
 
 ```bash
+# Backend (extraction + polling)
 export DEEPSEEK_API_KEY="your-key"
 pip install -r requirements.txt
+python3 run_demo.py              # demo with hardcoded CSV invoice
+pytest run_tests.py              # unit tests (requires API key)
+python3 -c "from processor import process_file; ..."  # feed your own invoice bytes
+
+# Dashboard
+cd dashboard
+npm install
+cp .env.example .env             # fill Supabase/Vite vars
+npm run dev
 ```
 
-## Usage
-- `python3 run_demo.py` — quick demo with hardcoded CSV invoice.
-- `pytest run_tests.py` — run unit tests (requires API key).
-- `python3 -c "from processor import process_file; ..."` — feed your own invoice bytes.
+## Supported input formats
 
-## Supported Input Formats
 - PDF (via `pdfplumber`)
 - Excel .xlsx (via `openpyxl`)
 - CSV / plain text (UTF-8 fallback)
-Dashboard: https://independent-restaurant-supplier-invoice-.vokrix.co
-Vercel: independent-restaurant-supplier-invoice-
-Railway: 243546a7-5b41-49cd-97dd-a5c63a1d441f
-Railway: independent-restaurant-supplier-invoice-
-Cloudflare: independent-restaurant-supplier-invoice-.vokrix.co
+- DeepSeek extracts all line-item details (description, SKU, unit, qty, unit price, extended total)
 
-Billing: 
+## Pricing
 
-Landing: https://vokrix.co/independent-restaurant-supplier-invoice-
+- Free: 3 uploads (no card required)
+- Paid: **$49/month** — unlimited uploads, all alert features (Stripe checkout, `VITE_STRIPE_PRICE_ID`)
 
-Outreach: active
+## Support
+
+- In-app Help + product assistant (dashboard)
+- Landing FAQ: no POS/inventory needed; PDFs/scans supported; variance threshold defined by recipe cost baselines; fully hosted by Vokrix
