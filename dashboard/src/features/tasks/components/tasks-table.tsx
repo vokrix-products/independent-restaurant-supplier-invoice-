@@ -2,6 +2,7 @@ import { FILTER_PLACEHOLDER } from '@/product-config'
 import { useEffect, useState } from 'react'
 import { getRouteApi } from '@tanstack/react-router'
 import {
+  type ColumnSizingState,
   type SortingState,
   type VisibilityState,
   flexRender,
@@ -40,6 +41,7 @@ export function TasksTable({ data }: DataTableProps) {
   const [rowSelection, setRowSelection] = useState({})
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({ id: false })
+  const [columnSizing, setColumnSizing] = useState<ColumnSizingState>({})
 
   // Local state management for table (uncomment to use local-only state, not synced with URL)
   // const [globalFilter, onGlobalFilterChange] = useState('')
@@ -76,11 +78,15 @@ export function TasksTable({ data }: DataTableProps) {
       columnFilters,
       globalFilter,
       pagination,
+      columnSizing,
     },
     enableRowSelection: true,
+    enableColumnResizing: true,
+    columnResizeMode: 'onChange',
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnVisibilityChange: setColumnVisibility,
+    onColumnSizingChange: setColumnSizing,
     globalFilterFn: (row, _columnId, filterValue) => {
       const id = String(row.getValue('id')).toLowerCase()
       const title = String(row.getValue('title')).toLowerCase()
@@ -123,8 +129,8 @@ export function TasksTable({ data }: DataTableProps) {
 
         ]}
       />
-      <div className='overflow-hidden rounded-md border'>
-        <Table className='min-w-xl'>
+      <div className='overflow-x-auto rounded-md border'>
+        <Table style={{ width: table.getTotalSize() }} className='min-w-xl'>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
@@ -133,7 +139,9 @@ export function TasksTable({ data }: DataTableProps) {
                     <TableHead
                       key={header.id}
                       colSpan={header.colSpan}
+                      style={{ width: header.getSize() }}
                       className={cn(
+                        'relative',
                         header.column.columnDef.meta?.className,
                         header.column.columnDef.meta?.thClassName
                       )}
@@ -144,6 +152,15 @@ export function TasksTable({ data }: DataTableProps) {
                             header.column.columnDef.header,
                             header.getContext()
                           )}
+                      {header.column.getCanResize() && (
+                        <div
+                          {...header.getResizerProps()}
+                          className={cn(
+                            'absolute right-0 top-0 z-10 h-full w-1.5 cursor-col-resize touch-none select-none bg-transparent hover:bg-primary/70',
+                            header.column.getIsResizing() && 'bg-primary'
+                          )}
+                        />
+                      )}
                     </TableHead>
                   )
                 })}
@@ -160,6 +177,7 @@ export function TasksTable({ data }: DataTableProps) {
                   {row.getVisibleCells().map((cell) => (
                     <TableCell
                       key={cell.id}
+                      style={{ width: cell.column.getSize() }}
                       className={cn(
                         cell.column.columnDef.meta?.className,
                         cell.column.columnDef.meta?.tdClassName

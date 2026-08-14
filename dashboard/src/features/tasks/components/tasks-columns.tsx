@@ -73,6 +73,8 @@ export const tasksColumns: ColumnDef<Task>[] = [
     ),
     enableSorting: false,
     enableHiding: false,
+    enableResizing: false,
+    size: 40,
   },
   {
     accessorKey: 'id',
@@ -82,6 +84,8 @@ export const tasksColumns: ColumnDef<Task>[] = [
     cell: ({ row }) => <div className='w-20'>{row.getValue('id')}</div>,
     enableSorting: false,
     enableHiding: true,
+    enableResizing: false,
+    size: 90,
   },
   {
     accessorKey: 'title',
@@ -89,13 +93,19 @@ export const tasksColumns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title='Name' />
     ),
     meta: {
-      className: 'ps-1 max-w-0 w-2/3',
+      className: 'ps-1',
       tdClassName: 'ps-4',
     },
+    size: 320,
+    minSize: 180,
+    maxSize: 800,
     cell: ({ row }) => {
+      const name = String(row.getValue('title') ?? '')
       return (
-        <div className='flex space-x-2'>
-          <span className='truncate font-medium'>{row.getValue('title')}</span>
+        <div className='flex min-w-0 space-x-2'>
+          <span className='truncate font-medium' title={name}>
+            {name}
+          </span>
         </div>
       )
     },
@@ -107,6 +117,7 @@ export const tasksColumns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title='Unit Price' />
     ),
     meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    size: 130,
     cell: ({ row }) => {
       const details = detailsOf(row)
       const price = details.unit_price
@@ -121,6 +132,7 @@ export const tasksColumns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title='Price Change' />
     ),
     meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    size: 150,
     cell: ({ row }) => {
       const details = detailsOf(row)
       const pct = details.price_change_pct
@@ -142,14 +154,16 @@ export const tasksColumns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title='Matched Recipe' />
     ),
     meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    size: 240,
+    minSize: 160,
     cell: ({ row }) => {
       const details = detailsOf(row)
       const recipe = details.matched_recipe
       if (!recipe) return <span className='text-muted-foreground'>—</span>
       const pct = details.recipe_impact_pct
       return (
-        <div className='flex flex-col'>
-          <span className='truncate font-medium'>{String(recipe)}</span>
+        <div className='flex min-w-0 flex-col'>
+          <span className='truncate font-medium' title={String(recipe)}>{String(recipe)}</span>
           {typeof pct === 'number' && Number.isFinite(pct) && (
             <span className={pct > 0 ? 'text-destructive text-xs' : 'text-emerald-600 text-xs'}>
               impact {pct > 0 ? '+' : ''}{pct.toFixed(1)}%
@@ -165,6 +179,7 @@ export const tasksColumns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title='Status' />
     ),
     meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    size: 170,
     cell: ({ row }) => {
       const statusValue = row.getValue('status') as string
       const statusDef = statuses.find((s) => s.value === statusValue)
@@ -191,6 +206,7 @@ export const tasksColumns: ColumnDef<Task>[] = [
       <DataTableColumnHeader column={column} title='Due / Expires' />
     ),
     meta: { className: 'ps-1', tdClassName: 'ps-4' },
+    size: 170,
     cell: ({ row }) => {
       const val = row.getValue('due_date') as string | null | undefined
       const formatted = formatDueDate(val)
@@ -236,10 +252,14 @@ export const tasksColumns: ColumnDef<Task>[] = [
     },
     enableSorting: false,
     enableHiding: true,
+    enableResizing: false,
+    size: 90,
   },
 
   {
     id: 'actions',
     cell: ({ row }) => <DataTableRowActions row={row} />,
+    enableResizing: false,
+    size: 60,
   },
 ]
