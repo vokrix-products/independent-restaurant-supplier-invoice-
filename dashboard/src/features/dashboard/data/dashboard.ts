@@ -16,6 +16,14 @@ export interface UpcomingRecord {
   due_date: string
 }
 
+export interface RecentAlert {
+  id: string
+  title: string
+  status: string
+  price_change_pct: string | null
+  matched_recipe: string | null
+}
+
 export interface DashboardStats {
   total: number
   needsAttention: number
@@ -26,6 +34,7 @@ export interface DashboardStats {
   statusCounts: { status: string; count: number }[]
   recent: DashboardRecord[]
   upcomingExpirations: UpcomingRecord[]
+  recentAlerts: RecentAlert[]
 }
 
 // Derived automatically from statuses with severity='critical' in data.tsx.
@@ -82,6 +91,15 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
     .order('due_date', { ascending: true })
     .limit(10)
 
+  // Latest line items that already went through variance analysis
+  const { data: alertData } = await supabase
+    .from('records')
+    .select('id, title, status, details')
+    .eq('product_id', PRODUCT_ID)
+    .not('details->>price_change_pct', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(6)
+
   return {
     total: rows.length,
     needsAttention,
@@ -104,6 +122,13 @@ async function fetchDashboardStats(): Promise<DashboardStats> {
       title: row.title,
       status: row.status,
       due_date: row.due_date,
+    })),
+    recentAlerts: (alertData ?? []).map((row) => ({
+      id: String(row.id),
+      title: row.title,
+      status: row.status,
+      price_change_pct: row.details?.price_change_pct ?? null,
+      matched_recipe: row.details?.matched_recipe ?? null,
     })),
   }
 }

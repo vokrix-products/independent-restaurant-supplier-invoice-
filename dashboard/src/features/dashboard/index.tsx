@@ -17,7 +17,7 @@ import { PRODUCT_ARCHETYPE } from '@/product-config'
 import { ReportCard } from './components/report-card'
 import { Overview } from './components/overview'
 import { RecentActivity } from './components/recent-activity'
-import { UpcomingExpirations } from './components/upcoming-expirations'
+import { RecentPriceAlerts } from './components/recent-alerts'
 import { useDashboardStats } from './data/dashboard'
 import { supabase } from '@/lib/supabase'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -156,15 +156,13 @@ export function Dashboard() {
               </CardContent>
             </Card>
           </div>
-          {/* PRODUCT_CUSTOMIZE: remove this card for products where records
-              have no expiration/renewal/deadline dates */}
           <Card>
             <CardHeader>
-              <CardTitle>Upcoming Expirations</CardTitle>
-              <CardDescription>Records expiring in the next 90 days</CardDescription>
+              <CardTitle>Recent Price Alerts</CardTitle>
+              <CardDescription>Latest line items with cost variance analysis</CardDescription>
             </CardHeader>
             <CardContent>
-              <UpcomingExpirations />
+              <RecentPriceAlerts />
             </CardContent>
           </Card>
         </div>
