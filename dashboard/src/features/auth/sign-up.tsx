@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from '@tanstack/react-router'
 
 import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
@@ -11,7 +12,18 @@ export function SignUp() {
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [emailExists, setEmailExists] = useState<boolean | null>(null)
 
+  const checkEmail = async (value: string) => {
+    const trimmed = value.trim().toLowerCase()
+    if (!trimmed) return
+    try {
+      const { data, error } = await supabase.rpc('user_exists', { p_email: trimmed })
+      if (!error) setEmailExists(Boolean(data))
+    } catch {
+      setEmailExists(null)
+    }
+  }
 
   const handleGoogle = async () => {
     await supabase.auth.signInWithOAuth({
@@ -87,8 +99,8 @@ export function SignUp() {
     <div className='flex min-h-svh items-center justify-center p-4'>
       <div className='w-full max-w-sm space-y-6'>
         <div className='space-y-1 text-center'>
-          <h1 className='text-2xl font-semibold'>{(import.meta.env.VITE_PRODUCT_NAME as string) || 'Get started'}</h1>
-          <p className='text-sm text-muted-foreground'>{(import.meta.env.VITE_PRODUCT_DESCRIPTION as string) || 'Free for your first 3 — no credit card needed.'}</p>
+          <h1 className='text-2xl font-semibold'>Create your account</h1>
+          <p className='text-sm text-muted-foreground'>{(import.meta.env.VITE_PRODUCT_DESCRIPTION as string) || 'Start your free trial — no credit card needed.'}</p>
         </div>
         <Button variant='outline' className='w-full' onClick={handleGoogle} type='button'>
           <svg className='mr-2 h-4 w-4' viewBox='0 0 24 24'>
@@ -106,13 +118,30 @@ export function SignUp() {
         <form onSubmit={handleSendCode} className='space-y-4'>
           <div className='space-y-2'>
             <Label htmlFor='email'>Email</Label>
-            <Input id='email' type='email' value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <Input
+              id='email'
+              type='email'
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              onBlur={(e) => checkEmail(e.target.value)}
+              required
+            />
           </div>
+          {emailExists === true && (
+            <p className='text-sm text-muted-foreground'>
+              An account already exists for this email.{' '}
+              <Link to='/sign-in' className='font-medium underline underline-offset-4'>Log in instead</Link>
+            </p>
+          )}
           {error && <p className='text-sm text-destructive'>{error}</p>}
           <Button type='submit' className='w-full' disabled={loading}>
             {loading ? 'Sending code...' : 'Start free trial'}
           </Button>
         </form>
+        <p className='text-center text-sm text-muted-foreground'>
+          Already have an account?{' '}
+          <Link to='/sign-in' className='font-medium text-foreground underline underline-offset-4'>Log in</Link>
+        </p>
       </div>
     </div>
   )
