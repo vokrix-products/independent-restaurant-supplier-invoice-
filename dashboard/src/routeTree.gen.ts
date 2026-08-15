@@ -23,6 +23,7 @@ import { Route as AuthenticatedSettingsRouteRouteImport } from './routes/_authen
 import { Route as AuthenticatedTasksIndexRouteImport } from './routes/_authenticated/tasks/index'
 import { Route as AuthenticatedHelpIndexRouteImport } from './routes/_authenticated/help/index'
 import { Route as AuthenticatedAuditIndexRouteImport } from './routes/_authenticated/audit/index'
+import { Route as AuthenticatedBaselinesIndexRouteImport } from './routes/_authenticated/baselines/index'
 import { Route as AuthenticatedTicketsIndexRouteImport } from './routes/_authenticated/tickets/index'
 import { Route as AuthenticatedSettingsIndexRouteImport } from './routes/_authenticated/settings/index'
 import { Route as AuthenticatedSettingsNotificationsRouteImport } from './routes/_authenticated/settings/notifications'
@@ -106,6 +107,11 @@ const AuthenticatedAuditIndexRoute = AuthenticatedAuditIndexRouteImport.update({
   path: '/audit/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBaselinesIndexRoute = AuthenticatedBaselinesIndexRouteImport.update({
+  id: '/baselines/',
+  path: '/baselines/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedSettingsIndexRoute =
   AuthenticatedSettingsIndexRouteImport.update({
     id: '/',
@@ -163,6 +169,7 @@ export interface FileRoutesByFullPath {
   '/tasks/': typeof AuthenticatedTasksIndexRoute
   '/help/': typeof AuthenticatedHelpIndexRoute
   '/audit/': typeof AuthenticatedAuditIndexRoute
+  '/baselines/': typeof AuthenticatedBaselinesIndexRoute
   '/tickets/': typeof AuthenticatedTicketsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -184,6 +191,7 @@ export interface FileRoutesByTo {
   '/tasks': typeof AuthenticatedTasksIndexRoute
   '/help': typeof AuthenticatedHelpIndexRoute
   '/audit': typeof AuthenticatedAuditIndexRoute
+  '/baselines': typeof AuthenticatedBaselinesIndexRoute
   '/tickets': typeof AuthenticatedTicketsIndexRoute
 }
 export interface FileRoutesById {
@@ -208,6 +216,7 @@ export interface FileRoutesById {
   '/_authenticated/tasks/': typeof AuthenticatedTasksIndexRoute
   '/_authenticated/help/': typeof AuthenticatedHelpIndexRoute
   '/_authenticated/audit/': typeof AuthenticatedAuditIndexRoute
+  '/_authenticated/baselines/': typeof AuthenticatedBaselinesIndexRoute
   '/_authenticated/tickets/': typeof AuthenticatedTicketsIndexRoute
 }
 export interface FileRouteTypes {
@@ -231,6 +240,9 @@ export interface FileRouteTypes {
     | '/settings/'
     | '/tasks/'
     | '/help/'
+    | '/audit/'
+    | '/baselines/'
+    | '/tickets/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/auth-callback'
@@ -251,6 +263,7 @@ export interface FileRouteTypes {
     | '/tasks'
     | '/help'
     | '/audit'
+    | '/baselines'
     | '/tickets'
   id:
     | '__root__'
@@ -274,6 +287,7 @@ export interface FileRouteTypes {
     | '/_authenticated/tasks/'
     | '/_authenticated/help/'
     | '/_authenticated/audit/'
+    | '/_authenticated/baselines/'
     | '/_authenticated/tickets/'
   fileRoutesById: FileRoutesById
 }
@@ -389,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/baselines/': {
+      id: '/_authenticated/baselines/'
+      path: '/baselines'
+      fullPath: '/baselines/'
+      preLoaderRoute: typeof AuthenticatedBaselinesIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tickets/': {
       id: '/_authenticated/tickets/'
       path: '/tickets'
@@ -471,6 +492,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedTasksIndexRoute: typeof AuthenticatedTasksIndexRoute
   AuthenticatedHelpIndexRoute: typeof AuthenticatedHelpIndexRoute
   AuthenticatedAuditIndexRoute: typeof AuthenticatedAuditIndexRoute
+  AuthenticatedBaselinesIndexRoute: typeof AuthenticatedBaselinesIndexRoute
   AuthenticatedTicketsIndexRoute: typeof AuthenticatedTicketsIndexRoute
 }
 
@@ -481,6 +503,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedTasksIndexRoute: AuthenticatedTasksIndexRoute,
   AuthenticatedHelpIndexRoute: AuthenticatedHelpIndexRoute,
   AuthenticatedAuditIndexRoute: AuthenticatedAuditIndexRoute,
+  AuthenticatedBaselinesIndexRoute: AuthenticatedBaselinesIndexRoute,
   AuthenticatedTicketsIndexRoute: AuthenticatedTicketsIndexRoute,
 }
 
