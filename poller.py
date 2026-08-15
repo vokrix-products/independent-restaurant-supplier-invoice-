@@ -67,22 +67,33 @@ def match_ingredient(description, sku, ingredients):
     return None, 0.0
 
 
-def load_recipe_data():
-    """Fetch recipes + ingredients for this product. Returns (recipes, by_recipe)."""
+def load_recipe_data(customer_id):
+    """Fetch recipes for this customer (their own + shared templates) plus ingredients.
+    Templates have customer_id = null and are readable by every customer."""
     try:
         r = requests.get(
             f"{SUPABASE_URL}/rest/v1/recipes",
             headers=HEADERS,
-            params={"product_id": f"eq.{PRODUCT_ID}", "select": "id,name,description"},
+            params={
+                "product_id": f"eq.{PRODUCT_ID}",
+                "or": f"(customer_id.eq.{customer_id},customer_id.is.null)",
+                "select": "id,name,description",
+            },
         )
         if r.status_code != 200:
             print(f"[DIAG] recipes lookup status={r.status_code} body={r.text[:300]}")
             return [], {}
         recipes = r.json()
+        if not recipes:
+            return [], {}
+        recipe_ids = ",".join('"{}"'.format(rec["id"]) for rec in recipes)
         r2 = requests.get(
             f"{SUPABASE_URL}/rest/v1/recipe_ingredients",
             headers=HEADERS,
-            params={"select": "recipe_id,ingredient_name,aliases,sku,unit,quantity,expected_unit_price"},
+            params={
+                "recipe_id": f"in.({recipe_ids})",
+                "select": "recipe_id,ingredient_name,aliases,sku,unit,quantity,expected_unit_price",
+            },
         )
         if r2.status_code != 200:
             print(f"[DIAG] recipe_ingredients lookup status={r2.status_code} body={r2.text[:300]}")
@@ -91,11 +102,65 @@ def load_recipe_data():
         by_recipe = {}
         for ing in ings:
             by_recipe.setdefault(ing["recipe_id"], []).append(ing)
-        print(f"[DIAG] recipe data loaded: {len(recipes)} recipes, {len(ings)} ingredients")
+        print(f"[DIAG] recipe data loaded for customer {customer_id}: {len(recipes)} recipes, {len(ings)} ingredients")
         return recipes, by_recipe
     except Exception as e:
         print(f"load_recipe_data failed: {e}")
         return [], {}
+
+
+def ensure_baseline(customer_id, results):
+    """On a customer's first upload, create per-supplier baseline recipes from the
+    extracted line items so their own supplier prices become the variance baseline.
+    No-op if the customer already has their own recipes. Zero typing required."""
+    try:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/recipes",
+            headers=HEADERS,
+            params={"product_id": f"eq.{PRODUCT_ID}", "customer_id": f"eq.{customer_id}", "select": "id", "limit": "1"},
+        )
+        if r.status_code == 200 and r.json():
+            return  # already has own recipes
+        if r.status_code != 200:
+            print(f"[DIAG] baseline check status={r.status_code} body={r.text[:200]}")
+            return
+    except Exception as e:
+        print(f"ensure_baseline check failed: {e}")
+        return
+
+    by_supplier = {}
+    for record in results:
+        details = record.get("details", {}) or {}
+        supplier = record.get("title") or "Unknown supplier"
+        by_supplier.setdefault(supplier, []).append(record)
+
+    for supplier, items in by_supplier.items():
+        recipe_id = str(uuid.uuid4())
+        recipe_payload = {
+            "id": recipe_id,
+            "product_id": PRODUCT_ID,
+            "customer_id": customer_id,
+            "name": f"{supplier} baseline",
+            "description": "Auto-created from your first invoice upload. Edit anytime.",
+        }
+        resp = requests.post(f"{SUPABASE_URL}/rest/v1/recipes", headers=HEADERS, json=recipe_payload)
+        if resp.status_code not in (200, 201):
+            print(f"[DIAG] baseline recipe create status={resp.status_code} body={resp.text[:200]}")
+            continue
+        for record in items:
+            details = record.get("details", {}) or {}
+            ing = {
+                "recipe_id": recipe_id,
+                "customer_id": customer_id,
+                "ingredient_name": details.get("description") or details.get("sku") or "Line item",
+                "aliases": [details["description"]] if details.get("description") else [],
+                "sku": details.get("sku"),
+                "unit": details.get("unit"),
+                "quantity": details.get("quantity") or 1,
+                "expected_unit_price": details.get("unit_price"),
+            }
+            requests.post(f"{SUPABASE_URL}/rest/v1/recipe_ingredients", headers=HEADERS, json=ing)
+    print(f"[DIAG] baseline created for customer {customer_id}: {len(by_supplier)} supplier group(s)")
 
 
 def _to_float(v):
@@ -107,8 +172,9 @@ def _to_float(v):
 
 
 # ---------- price variance (same-SKU + recipe baseline) ----------
-def fetch_previous_price(sku, description):
-    """Return (old_unit_price, created_at) of most recent prior record with same sku or description."""
+def fetch_previous_price(sku, description, customer_id):
+    """Return (old_unit_price, created_at) of most recent prior record for THIS customer
+    with same sku or description. Baselines are always scoped to the customer."""
     if not sku and not description:
         return None, None
     candidates = []
@@ -122,6 +188,7 @@ def fetch_previous_price(sku, description):
             headers=HEADERS,
             params={
                 "product_id": f"eq.{PRODUCT_ID}",
+                "customer_id": f"eq.{customer_id}",
                 field: f"eq.{val}",
                 "select": "details,created_at",
                 "order": "created_at.desc",
@@ -254,8 +321,11 @@ def poll():
                 file_bytes = download_file("uploads", input_file)
                 results = processor.process_file(file_bytes)
 
-                # load recipe baselines once per job
-                recipes, by_recipe = load_recipe_data()
+                # first upload for this customer -> their own supplier prices become the baseline
+                ensure_baseline(customer_id, results)
+
+                # load baselines scoped to this customer (their own + shared templates)
+                recipes, by_recipe = load_recipe_data(customer_id)
                 flat_ingredients = []
                 for rid, ings in by_recipe.items():
                     for ing in ings:
@@ -273,7 +343,7 @@ def poll():
                     description = details.get("description")
                     new_price = details.get("unit_price")
 
-                    old_price, _ = fetch_previous_price(sku, description)
+                    old_price, _ = fetch_previous_price(sku, description, customer_id)
                     ing, _score = match_ingredient(description, sku, flat_ingredients)
                     baseline = None
                     if old_price is None and ing and ing.get("expected_unit_price") is not None:
