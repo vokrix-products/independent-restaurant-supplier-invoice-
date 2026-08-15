@@ -1,4 +1,3 @@
-
 import { Header } from '@/components/layout/header'
 import { NotificationsBell } from '@/components/notifications-bell'
 import { Main } from '@/components/layout/main'
@@ -7,6 +6,7 @@ import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { TasksDialogs } from './components/tasks-dialogs'
 import { TasksPrimaryButtons } from './components/tasks-primary-buttons'
+import { DemoDataButtons } from './components/demo-data-buttons'
 import { TasksProvider } from './components/tasks-provider'
 import { TasksTable } from './components/tasks-table'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,7 +33,10 @@ export function Tasks() {
               {RECORDS_SUBTITLE}
             </p>
           </div>
-          <TasksPrimaryButtons />
+          <div className='flex items-center gap-2'>
+            <DemoDataButtons />
+            <TasksPrimaryButtons />
+          </div>
         </div>
         {isLoading && (
           <div className='space-y-2 px-1'>
