@@ -2,7 +2,7 @@
 
 **Know the moment a supplier price hike hits your recipes.** Upload supplier invoices and get instant alerts when ingredient costs drift from what your recipes expect — no inventory system, no POS integration required.
 
-- **Live dashboard:** https://independent-restaurant-supplier-invoice-.vokrix.co
+- **Live dashboard:** https://independent-restaurant-supplier-invoice.vokrix.co
 - **Landing page:** https://vokrix.co/independent-restaurant-supplier-invoice-
 - **Status:** active, accepting paid customers ($49/mo, 3 free uploads to try)
 
@@ -40,7 +40,7 @@ processor.py DeepSeek extraction engine (PDF/XLSX/CSV/text → records)
 backend/     Legacy copy of processor.py (kept for reference)
 ```
 
-- **Dashboard:** https://independent-restaurant-supplier-invoice-.vokrix.co (Vercel)
+- **Dashboard:** https://independent-restaurant-supplier-invoice.vokrix.co (Vercel)
 - **Poller/processor:** Railway service `243546a7-5b41-49cd-97dd-a5c63a1d441f` (Docker)
 - **Database:** Supabase `llaorhwnbtppguvnkxzu` — tables: `records`, `jobs`, `recipes`, `recipe_ingredients`, `customers`, `notifications`, `profiles`
 
@@ -58,6 +58,7 @@ backend/     Legacy copy of processor.py (kept for reference)
 - Stats cards: Added This Week, Status Breakdown (bar chart).
 - Recent Activity (ingest timeline) + Top Price Movers (largest |%| variances, color-coded, no 0.0% noise).
 - Upload card: drag-drop + choose file, animated circular progress, 3-free-uploads meter, Upgrade → Stripe.
+- **Load demo data / Clear demo** — one click fills the dashboard with a realistic sample invoice (8 line items, 3 suppliers, real recipe baselines) so new users see the full product instantly; Clear removes only demo rows (`source_file_path = 'demo://...'`), never the user's own uploads.
 - Separate `/sign-in` (Send login code) and `/sign-up` (Start free trial) pages with Vercel-style email-exists detection (`user_exists` RPC).
 - Paid accounts: `app_metadata.product_id = 'independent-restaurant-supplier-invoice-'` + `subscription_active = true` (set by Stripe webhook) — paywall hides, unlimited uploads.
 
