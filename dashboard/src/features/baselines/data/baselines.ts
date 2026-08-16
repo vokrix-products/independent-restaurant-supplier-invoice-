@@ -121,7 +121,7 @@ export function useCopyRecipe() {
       }
       return newRecipe.id
     },
-    onSuccess: (id, recipe) => {
+    onSuccess: (id) => {
       queryClient.invalidateQueries({ queryKey: ['baselines', PRODUCT_ID] })
       if (user?.id) void writeAudit('baseline.copied', 'recipe', id, user.id)
     },
