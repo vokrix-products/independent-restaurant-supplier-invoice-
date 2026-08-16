@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Copy, Pencil, Trash2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
@@ -20,7 +20,12 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { useDeleteRecipe, type BaselineIngredient, type BaselineRecipe } from '../data/baselines'
+import {
+  useCopyRecipe,
+  useDeleteRecipe,
+  type BaselineIngredient,
+  type BaselineRecipe,
+} from '../data/baselines'
 import { EditIngredientDialog } from './edit-ingredient-dialog'
 
 function formatPrice(v: number | null) {
@@ -30,8 +35,18 @@ function formatPrice(v: number | null) {
 export function BaselineCard({ recipe }: { recipe: BaselineRecipe }) {
   const isTemplate = recipe.customer_id === null
   const deleteRecipe = useDeleteRecipe()
+  const copyRecipe = useCopyRecipe()
   const [editing, setEditing] = useState<BaselineIngredient | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await copyRecipe.mutateAsync(recipe)
+      toast.success('Copied to your baselines — now you can edit it')
+    } catch {
+      toast.error('Failed to copy baseline')
+    }
+  }
 
   return (
     <Card className='h-fit'>
@@ -58,6 +73,12 @@ export function BaselineCard({ recipe }: { recipe: BaselineRecipe }) {
             )}
           </div>
         </div>
+        {isTemplate && (
+          <Button variant='outline' size='sm' className='mt-2' onClick={handleCopy} disabled={copyRecipe.isPending}>
+            <Copy className='mr-1.5 h-3.5 w-3.5' />
+            Copy to my baselines
+          </Button>
+        )}
       </CardHeader>
       <CardContent className='space-y-1.5'>
         {recipe.ingredients.length === 0 && (
@@ -78,15 +99,17 @@ export function BaselineCard({ recipe }: { recipe: BaselineRecipe }) {
               <span className='text-sm font-semibold tabular-nums'>
                 {formatPrice(ing.expected_unit_price)}
               </span>
-              <Button
-                variant='ghost'
-                size='icon'
-                className='h-7 w-7'
-                onClick={() => setEditing(ing)}
-                title='Correct this ingredient'
-              >
-                <Pencil className='h-3.5 w-3.5' />
-              </Button>
+              {!isTemplate && (
+                <Button
+                  variant='ghost'
+                  size='icon'
+                  className='h-7 w-7'
+                  onClick={() => setEditing(ing)}
+                  title='Correct this ingredient'
+                >
+                  <Pencil className='h-3.5 w-3.5' />
+                </Button>
+              )}
             </div>
           </div>
         ))}

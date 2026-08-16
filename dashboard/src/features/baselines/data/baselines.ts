@@ -84,6 +84,50 @@ export function useUpdateIngredient() {
   })
 }
 
+export function useCopyRecipe() {
+  const queryClient = useQueryClient()
+  const user = useAuthStore((s) => s.auth.user)
+  return useMutation({
+    mutationFn: async (recipe: BaselineRecipe) => {
+      const userId = user?.id
+      if (!userId) throw new Error('Not signed in')
+
+      const { data: newRecipe, error: recipeError } = await supabase
+        .from('recipes')
+        .insert({
+          product_id: PRODUCT_ID,
+          customer_id: userId,
+          name: recipe.name,
+          description: recipe.description,
+        })
+        .select('id')
+        .single()
+      if (recipeError) throw recipeError
+
+      if (recipe.ingredients.length > 0) {
+        const { error: ingError } = await supabase.from('recipe_ingredients').insert(
+          recipe.ingredients.map((ing) => ({
+            recipe_id: newRecipe.id,
+            customer_id: userId,
+            ingredient_name: ing.ingredient_name,
+            aliases: ing.aliases ?? [],
+            sku: ing.sku,
+            unit: ing.unit,
+            quantity: ing.quantity ?? 1,
+            expected_unit_price: ing.expected_unit_price,
+          })),
+        )
+        if (ingError) throw ingError
+      }
+      return newRecipe.id
+    },
+    onSuccess: (id, recipe) => {
+      queryClient.invalidateQueries({ queryKey: ['baselines', PRODUCT_ID] })
+      if (user?.id) void writeAudit('baseline.copied', 'recipe', id, user.id)
+    },
+  })
+}
+
 export function useDeleteRecipe() {
   const queryClient = useQueryClient()
   const user = useAuthStore((s) => s.auth.user)
